@@ -4,8 +4,8 @@ import sdf
 plt.switch_backend('agg')
 c       =  3e8
 micron  =  1e-6
-gridnumber = 1200
-stop    =  100
+gridnumber = 2400
+stop    =  17000
 dt_snapshot= 1e-15
 x_end   =  60 * micron
 x_max   =  60 * micron

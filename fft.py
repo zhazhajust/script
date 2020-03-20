@@ -49,12 +49,12 @@ if __name__ == "__main__":
   x_min   =  0 * micron
   window_start_time =  (x_max - x_min) / c 
   start_move_number =  int(window_start_time * 1e15)
-  y       =  500
+  y       =  1250
   x_end   =  60 * micron
-  gridnumber = 1200
+  gridnumber = 2400
   delta_x =  x_end/gridnumber
   start   =  1  # start time
-  stop    =  100  # end time
+  stop    =  17000  # end time
   step    =  1  # the interval or step
   dt_snapshot= 1e-15  #fs
   t_end   =  stop * dt_snapshot
