@@ -42,7 +42,8 @@ if __name__ == "__main__":
   
   
   ######### Parameter you should set ###########
-  dirsdf  =  '../Data/new/'
+  dirsdf  =  '../Data/new1/'
+  filenumbersize=5
   c       =  3e8
   micron  =  1e-6 
   x_max   =  60 * micron
@@ -55,7 +56,7 @@ if __name__ == "__main__":
   delta_x =  x_end/gridnumber
   start   =  1  # start time
   stop    =  17000  # end time
-  step    =  1  # the interval or step
+  step    =  10  # the interval or step
   dt_snapshot= 1e-15  #fs
   t_end   =  stop * dt_snapshot
   t_n     =  int(t_end/1e-15)
@@ -86,44 +87,50 @@ if __name__ == "__main__":
     t=[]
     bz=[]'''
   t=[]
-  xt=np.zeros((xgrid+1,t_n)) 
+  t_interval=int(step*dt_snapshot*1e15)
+  x_interval=10
+  xt=np.zeros((int(xgrid/x_interval)+1,int(t_n/t_interval)))
+  x=np.arange(0,xgrid + x_interval,x_interval)
+ 
   for n in range(start,stop+step,step):
         #### header data ####
-        data = sdf.read(dirsdf+str(n).zfill(4)+".sdf",dict=True)
+        data = sdf.read(dirsdf+str(n).zfill(filenumbersize)+".sdf",dict=True)
         header=data['Header']
         time=header['time']
         t.append(header['time']*1e15) #[fs]
         if  n  <  start_move_number:
                      
-           for x in range(1,gridnumber+1):
+           for x in range(1,int(gridnumber/x_interval)+1):
               #if x > 1200 :
-                   t.append(header['time']*1e15) #[fs]
+                   # t.append(header['time']*1e15) #[fs]
    
-                   xt[x][n-1]=data['Electric Field/Ey'].data[x-1][y]/bxunit            
+                   xt[x][n-1]=data['Magnetic Field/Bz'].data[x*x_interval-1][y]/bxunit            
         else:
-           for x in range(1,xgrid+1):
+           for x in range(1,int(xgrid/x_interval)+1,x_interval):
              #if x > 1200 :
-	       if x-c*(time-window_start_time)/delta_x >= 0 and x-c*(time-window_start_time)/delta_x < gridnumber-1:
-		   t.append(header['time']*1e15) #[fs]
+	       if x*x_interval-c*(time-window_start_time)/delta_x >= 0 and x*x_interval-c*(time-window_start_time)/delta_x < gridnumber-1:
+		   # t.append(header['time']*1e15) #[fs]
    
-                   xt[x][n-1]=data['Electric Field/Ey'].data[int(round(x-c*(time-window_start_time)/delta_x))][y]/bxunit
+                   xt[x][n-1]=data['Magnetic Field/Bz'].data[int(round(x*x_interval-c*(time-window_start_time)/delta_x))][y]/bxunit
                    #else:bz.append(0)
                    #print 'Reading finished%d' %len(t)
   N0 = len(xt[1])		##取样长度
   T = t[len(t)-1]-t[0]		##时间间隔
   fs = N0*1e3/T		##取样频率[THz]
   freqs=[]
-  xf=np.zeros((xgrid+1,N0/2+1))
+  xf=np.zeros((int(xgrid/x_interval)+1,N0/2+1))
   freqs = np.linspace(0, fs/2, N0/2+1)
-  for x in range(1,xgrid):
+  for x in range(1,int(xgrid/x_interval)):
     xf[x] = np.fft.rfft(xt[x])/N0
     #xf[0] = xf[0]/2
     #xf[N0/2] = xf[N0/2]/2
 
     xf=np.abs(xf)
-  
+  print len(xf)+len(xt)+"writed"
+  np.savetxt("./x.txt",x)
   np.savetxt("./xt.txt", xt)
   np.savetxt("./t.txt", t)
 
   np.savetxt("./freqs.txt", freqs)
   np.savetxt("./xf.txt", xf)
+  print len(xf)+"saved"
