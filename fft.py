@@ -42,29 +42,30 @@ if __name__ == "__main__":
   
   
   ######### Parameter you should set ###########
-  dirsdf  =  '../Data/new1/'
-  filenumbersize=5
+  dirsdf  =  '../Data/delaylaser/'
+  filenumbersize=4
   c       =  3e8
   micron  =  1e-6 
   x_max   =  60 * micron
   x_min   =  0 * micron
+  dt_snapshot= 10e-15  #s
+  dt      =  dt_snapshot*1e15 
   window_start_time =  (x_max - x_min) / c 
-  start_move_number =  int(window_start_time * 1e15)
+  start_move_number =  int(window_start_time/dt)
   y       =  1250
   x_end   =  60 * micron
   gridnumber = 2400
   delta_x =  x_end/gridnumber
   start   =  1  # start time
-  stop    =  17000  # end time
-  step    =  10  # the interval or step
-  dt_snapshot= 1e-15  #fs
+  stop    =  30  # end time
+  step    =  1  # the interval or step
   t_end   =  stop * dt_snapshot
   t_n     =  int(t_end/1e-15)
   if t_end-window_start_time<0:
       xgrid   =  int(gridnumber)
   else:
       xgrid   =  int(gridnumber + c*(t_end-window_start_time)/delta_x)
-   
+  print "xgrid:",xgrid 
   if (os.path.isdir('fft') == False):
     os.mkdir('fft')
   if (os.path.isdir('txt') == False):
@@ -86,51 +87,65 @@ if __name__ == "__main__":
     e=[]
     t=[]
     bz=[]'''
-  t=[]
-  t_interval=int(step*dt_snapshot*1e15)
-  x_interval=10
-  xt=np.zeros((int(xgrid/x_interval)+1,int(t_n/t_interval)))
-  x=np.arange(0,xgrid + x_interval,x_interval)
- 
-  for n in range(start,stop+step,step):
+  x_interval=1
+  t_total=1e15*x_end/c       #fs
+  t_size=int(t_total/dt)+1+1          #how much dt
+  
+###set allay t,xt,distance
+  t=np.zeros((int(xgrid/x_interval)+1,t_size))
+  xt=np.zeros((int(xgrid/x_interval)+1,t_size))
+  distance=np.zeros((int(xgrid/x_interval)+1,t_size))
+  print "t,xt,distance.shape",t.shape,xt.shape,distance.shape
+  for n in range(start,stop+1,1):
         #### header data ####
         data = sdf.read(dirsdf+str(n).zfill(filenumbersize)+".sdf",dict=True)
         header=data['Header']
         time=header['time']
-        t.append(header['time']*1e15) #[fs]
+        #t.append(header['time']*1e15) #[fs]
         if  n  <  start_move_number:
                      
            for x in range(1,int(gridnumber/x_interval)+1):
               #if x > 1200 :
                    # t.append(header['time']*1e15) #[fs]
-   
-                   xt[x][n-1]=data['Magnetic Field/Bz'].data[x*x_interval-1][y]/bxunit            
+                if n > 0 and n < t_size:   
+                   d_n=(1e15*delta_x*x*x_interval/c)/dt
+                   distance[x][n]=x          #[delta_x]
+                   t[x][n]=time*1e15  #[fs]
+                   xt[x][n]=data['Magnetic Field/Bz'].data[x*x_interval-1][y]/bxunit            
         else:
-           for x in range(1,int(xgrid/x_interval)+1,x_interval):
+           for x in range(1,int(xgrid/x_interval)+1):
              #if x > 1200 :
 	       if x*x_interval-c*(time-window_start_time)/delta_x >= 0 and x*x_interval-c*(time-window_start_time)/delta_x < gridnumber-1:
 		   # t.append(header['time']*1e15) #[fs]
-   
-                   xt[x][n-1]=data['Magnetic Field/Bz'].data[int(round(x*x_interval-c*(time-window_start_time)/delta_x))][y]/bxunit
+                   d_n=(1e15*delta_x*x*x_interval/c)/dt
+                   distance[x][n-int(d_n)]=x          #[delta_x]
+                   t[x][n-int(d_n)]=time*1e15  #[fs]
+                   xt[x][n-int(d_n)]=data['Magnetic Field/Bz'].data[int(round(x*x_interval-c*(time-window_start_time)/delta_x))][y]/bxunit
                    #else:bz.append(0)
+
+
                    #print 'Reading finished%d' %len(t)
-  N0 = len(xt[1])		##取样长度
-  T = t[len(t)-1]-t[0]		##时间间隔
-  fs = N0*1e3/T		##取样频率[THz]
-  freqs=[]
+  N0=t_size
+  T=t_size*dt             #fs  #dt_snapshot*1e15  #t[x][t_size-1]-t[x][0]
+  fs=N0*1e3/T
+  freqs=np.linspace(0,fs/2,int(N0/2)+1)
   xf=np.zeros((int(xgrid/x_interval)+1,N0/2+1))
-  freqs = np.linspace(0, fs/2, N0/2+1)
-  for x in range(1,int(xgrid/x_interval)):
+         #freqs = np.zeros((int(xgrid/x_interval)+1,N0/2+1))
+  for x in range(1,int(xgrid/x_interval)+1):
     xf[x] = np.fft.rfft(xt[x])/N0
     #xf[0] = xf[0]/2
     #xf[N0/2] = xf[N0/2]/2
 
     xf=np.abs(xf)
-  print len(xf)+len(xt)+"writed"
-  np.savetxt("./x.txt",x)
+    #N0 = len(xt[x])
+    #T=t[x][t_size-1]-t[x][0]
+    #fs=N0*1e3/T
+    #freqs[x]=np.linspace(0,fs/2,int(N0/2)+1)
+  print "writed"
+  np.savetxt("./x.txt",distance)
   np.savetxt("./xt.txt", xt)
   np.savetxt("./t.txt", t)
 
-  np.savetxt("./freqs.txt", freqs)
+  #np.savetxt("./freqs.txt", freqs)
   np.savetxt("./xf.txt", xf)
-  print len(xf)+"saved"
+  print "saved"
